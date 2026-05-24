@@ -1,20 +1,19 @@
 # uniserv
 
-زنجیرهٔ پروکسی چندلایه با Docker: OpenVPN → SSH SOCKS → Xray (VLESS).
+زنجیرهٔ پروکسی با Docker: OpenVPN → Xray (VLESS) → Gateway.
 
 ## معماری
 
 ```
 کلاینت → Gateway:1090 → OpenVPN (relay) → Xray SOCKS → VLESS
-                              ↑                ↑
-                         تونل VPN          SSH SOCKS → سرور داخلی
+                              ↑
+                         تونل VPN
 ```
 
 | سرویس | نقش |
 |--------|-----|
-| **openvpn** | اتصال VPN دانشگاهی + killswitch + relay پورت ۱۰۹۰ |
-| **ssh** | تونل SOCKS به سرور داخلی (از شبکهٔ VPN) |
-| **xray** | پروکسی VLESS از طریق SSH SOCKS |
+| **openvpn** | اتصال VPN + killswitch + relay پورت ۱۰۹۰ |
+| **xray** | پروکسی VLESS (از شبکهٔ VPN) |
 | **gateway** | درگاه عمومی `localhost:1090` |
 
 ## راه‌اندازی
@@ -22,7 +21,6 @@
 ```bash
 cp config.example.yaml config.yaml
 # پروفایل .ovpn را در openvpn/profiles/ بگذارید
-# کلید SSH در ~/.ssh یا ssh/keys/
 docker compose up -d --build
 ```
 

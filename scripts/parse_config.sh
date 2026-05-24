@@ -30,79 +30,6 @@ get_openvpn_password() {
   get_openvpn_field password
 }
 
-get_ssh_field() {
-  field="$1"
-  value="$(yq -r ".ssh_configs[] | select(.active == true) | .$field" "$CONFIG_FILE" | head -n1)"
-  if [ -z "$value" ] || [ "$value" = "null" ]; then
-    value="$(yq -r ".ssh_configs[0].$field" "$CONFIG_FILE")"
-  fi
-  printf '%s' "$value"
-}
-
-get_ssh_user() {
-  get_ssh_field user
-}
-
-get_ssh_host() {
-  get_ssh_field host
-}
-
-get_ssh_port() {
-  port="$(get_ssh_field port)"
-  if [ -z "$port" ] || [ "$port" = "null" ]; then
-    port="22"
-  fi
-  printf '%s' "$port"
-}
-
-get_ssh_password() {
-  get_ssh_field password
-}
-
-get_ssh_socks_port() {
-  port="$(get_ssh_field socks_port)"
-  if [ -z "$port" ] || [ "$port" = "null" ]; then
-    port="1081"
-  fi
-  printf '%s' "$port"
-}
-
-get_ssh_private_key_path() {
-  ssh_dir="${SSH_DIR:-/root/.ssh}"
-  key="$(get_ssh_field private_key 2>/dev/null || true)"
-
-  if [ -n "$key" ] && [ "$key" != "null" ]; then
-    case "$key" in
-      /*)
-        resolved_key="$key"
-        ;;
-      ~/.ssh/*)
-        resolved_key="${ssh_dir}/$(basename "$key")"
-        ;;
-      ssh/keys/*)
-        resolved_key="/etc/ssh/keys/$(basename "$key")"
-        ;;
-      *)
-        resolved_key="${ssh_dir}/$(basename "$key")"
-        ;;
-    esac
-
-    if [ -f "$resolved_key" ]; then
-      printf '%s' "$resolved_key"
-      return 0
-    fi
-  fi
-
-  for candidate in id_ed25519 id_rsa id_ecdsa; do
-    if [ -f "${ssh_dir}/${candidate}" ]; then
-      printf '%s' "${ssh_dir}/${candidate}"
-      return 0
-    fi
-  done
-
-  return 1
-}
-
 get_xray_vless_url() {
   url="$(yq -r '.xray_configs[] | select(.active == true) | .url' "$CONFIG_FILE" | head -n1)"
   if [ -z "$url" ] || [ "$url" = "null" ]; then
@@ -183,7 +110,6 @@ generate_xray_config() {
   output="$1"
   url="$(get_xray_vless_url)"
   parse_vless_url "$url"
-  ssh_socks_port="$(get_ssh_socks_port)"
   xray_socks_port="${XRAY_SOCKS_PORT:-1091}"
 
   cat >"$output" <<EOF
@@ -245,18 +171,6 @@ generate_xray_config() {
   },
   "outbounds": [
     {
-      "protocol": "socks",
-      "tag": "ssh-tunnel",
-      "settings": {
-        "servers": [
-          {
-            "address": "127.0.0.1",
-            "port": ${ssh_socks_port}
-          }
-        ]
-      }
-    },
-    {
       "mux": {
         "concurrency": -1,
         "enabled": false,
@@ -287,9 +201,6 @@ generate_xray_config() {
           "header": {
             "type": "none"
           }
-        },
-        "sockopt": {
-          "dialerProxy": "ssh-tunnel"
         }
       },
       "tag": "proxy"

@@ -18,24 +18,23 @@ services:
       retries: 5
       start_period: 90s
 
-  ssh:
+  xray:
     build:
       context: .
-      dockerfile: ssh/Dockerfile
+      dockerfile: xray/Dockerfile
     network_mode: service:openvpn
     depends_on:
       openvpn:
         condition: service_healthy
     volumes:
       - ./config.yaml:/etc/uniserv/config.yaml:ro
-      - ${HOME}/.ssh:/root/.ssh:ro
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "sh", "-c", "nc -z 127.0.0.1 1081"]
+      test: ["CMD", "sh", "-c", "nc -z 127.0.0.1 1091"]
       interval: 30s
       timeout: 5s
       retries: 5
-      start_period: 60s
+      start_period: 30s
 
   gateway:
     build:
@@ -55,21 +54,3 @@ services:
       timeout: 5s
       retries: 5
       start_period: 15s
-
-  xray:
-    build:
-      context: .
-      dockerfile: xray/Dockerfile
-    network_mode: service:ssh
-    depends_on:
-      ssh:
-        condition: service_healthy
-    volumes:
-      - ./config.yaml:/etc/uniserv/config.yaml:ro
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "sh", "-c", "nc -z 127.0.0.1 1091"]
-      interval: 30s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
