@@ -1,0 +1,75 @@
+services:
+  openvpn:
+    build:
+      context: .
+      dockerfile: openvpn/Dockerfile
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun
+    volumes:
+      - ./config.yaml:/etc/uniserv/config.yaml:ro
+      - ./openvpn/profiles:/etc/openvpn/profiles:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "sh", "-c", "ip link show tun0 && ip route | grep -q 'dev tun0'"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+
+  ssh:
+    build:
+      context: .
+      dockerfile: ssh/Dockerfile
+    network_mode: service:openvpn
+    depends_on:
+      openvpn:
+        condition: service_healthy
+    volumes:
+      - ./config.yaml:/etc/uniserv/config.yaml:ro
+      - ${HOME}/.ssh:/root/.ssh:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "sh", "-c", "nc -z 127.0.0.1 1081"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+  gateway:
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    ports:
+      - "1090:1090"
+    depends_on:
+      openvpn:
+        condition: service_healthy
+      xray:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "sh", "-c", "socat - TCP:127.0.0.1:1090 </dev/null"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  xray:
+    build:
+      context: .
+      dockerfile: xray/Dockerfile
+    network_mode: service:ssh
+    depends_on:
+      ssh:
+        condition: service_healthy
+    volumes:
+      - ./config.yaml:/etc/uniserv/config.yaml:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "sh", "-c", "nc -z 127.0.0.1 1091"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s

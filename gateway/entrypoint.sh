@@ -1,0 +1,12 @@
+#!/bin/sh
+set -eu
+
+LISTEN_PORT="${GATEWAY_LISTEN_PORT:-1090}"
+UPSTREAM_HOST="${GATEWAY_UPSTREAM_HOST:-openvpn}"
+UPSTREAM_PORT="${GATEWAY_UPSTREAM_PORT:-1090}"
+
+echo "Gateway listening on 0.0.0.0:${LISTEN_PORT} -> ${UPSTREAM_HOST}:${UPSTREAM_PORT}"
+
+exec socat \
+  "TCP-LISTEN:${LISTEN_PORT},fork,reuseaddr,bind=0.0.0.0" \
+  "TCP:${UPSTREAM_HOST}:${UPSTREAM_PORT}"
